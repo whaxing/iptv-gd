@@ -1,34 +1,43 @@
-name: Sync IPTV M3U & Replace RTP
-
-# 触发规则：
-# 1. 每6小时自动运行一次（定时拉取上游更新）
-# 2. 手动可点击按钮立即运行
+name: Sync IPTV M3U Replace RTP
 on:
   schedule:
+    # 每6小时自动同步
     - cron: '0 */6 * * *'
+  # 支持手动点击运行
   workflow_dispatch:
 
 jobs:
-  build:
+  sync:
     runs-on: ubuntu-latest
     steps:
-      - name: 拉取你自己仓库代码
+      # 1. 检出你的仓库代码
+      - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-          fetch-depth: 0
 
-      - name: 拉取上游原文件内容
+      # 2. 下载上游原始m3u文件 + 全局文本替换
+      - name: Download & Modify M3U File
         run: |
-          # 下载github源文件原始内容
-          curl -fsSL https://raw.githubusercontent.com/Tzwcard/ChinaTelecom-GuangdongIPTV-RTP-List/master/GuangdongIPTV_rtp_all.m3u -o source.m3u
-          
-          # 文本全局替换：rtp:// 替换为 http://192.168.6.1:4022/udp/
-          sed 's|rtp://|http://192.168.6.1:4022/udp/|g' source.m3u > GuangdongIPTV_all.m3u
+          # 拉取官方源文件
+          curl -fsSL https://raw.githubusercontent.com/Tzwcard/ChinaTelecom-GuangdongIPTV-RTP-List/master/GuangdongIPTV_rtp_all.m3u -o raw.m3u
+          # 替换：rtp:// → http://192.168.6.1:4022/udp/
+          sed 's|rtp://|http://192.168.6.1:4022/udp|g' raw.m3u > GuangdongIPTV_all.m3u
+          # 删除临时原文件
+          rm -f raw.m3u
 
-      - name: 提交更新后的文件到自己仓库
-        uses: ad-m/github-push-action@master
-        with:
-          branch: main
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          message: "Auto sync & replace rtp link"
+      # 3. 配置git用户信息
+      - name: Set up Git config
+        run: |
+          git config --global user.name "GitHub Actions Bot"
+          git config --global user.email "actions@github.com"
+
+      # 4. 检测文件变化，有更新就提交推送
+      - name: Commit and Push Changes
+        run: |
+          git add GuangdongIPTV_modified.m3u
+          # 判断是否有文件改动，无改动直接退出不提交
+          if git diff --cached --quiet; then
+            echo "No updates found, skip push"
+            exit 0
+          fi
+          git commit -m "Auto update IPTV list: $(date '+%Y-%m-%d %H:%M')"
+          git push origin HEAD:main
