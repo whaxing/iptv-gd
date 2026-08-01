@@ -1,0 +1,34 @@
+name: Sync IPTV M3U & Replace RTP
+
+# 触发规则：
+# 1. 每6小时自动运行一次（定时拉取上游更新）
+# 2. 手动可点击按钮立即运行
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 拉取你自己仓库代码
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: 拉取上游原文件内容
+        run: |
+          # 下载github源文件原始内容
+          curl -fsSL https://raw.githubusercontent.com/Tzwcard/ChinaTelecom-GuangdongIPTV-RTP-List/master/GuangdongIPTV_rtp_all.m3u -o source.m3u
+          
+          # 文本全局替换：rtp:// 替换为 http://192.168.6.1:4022/udp/
+          sed 's|rtp://|http://192.168.6.1:4022/udp/|g' source.m3u > GuangdongIPTV_all.m3u
+
+      - name: 提交更新后的文件到自己仓库
+        uses: ad-m/github-push-action@master
+        with:
+          branch: main
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          message: "Auto sync & replace rtp link $(date +'%Y-%m-%d %H:%M')"
