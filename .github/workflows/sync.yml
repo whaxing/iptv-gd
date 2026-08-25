@@ -26,6 +26,7 @@ jobs:
 
           # 替换 rtp:// → http://192.168.6.1:4022/udp/
           sed 's|rtp://|http://192.168.6.1:4022/udp/|g' source.m3u > GuangdongIPTV_modified.m3u
+          sed 's|rtp://|http://192.168.6.1:5140/udp/|g' source.m3u > GuangdongIPTV_rtp2httpd.m3u
 
           # 输出文件大小用于排查
           ls -lh
@@ -38,7 +39,7 @@ jobs:
 
       - name: 提交推送文件
         run: |
-          git add GuangdongIPTV_modified.m3u
+          git add GuangdongIPTV_modified.m3u GuangdongIPTV_rtp2httpd.m3u
           # 无变更则跳过提交
           if git diff --cached --quiet; then
             echo "内容无更新，无需推送"
